@@ -1,0 +1,30 @@
+appId: com.tokenluvapp.desktop
+productName: TokenLUV
+directories:
+  buildResources: assets
+files:
+  - from: out/main
+    to: .
+  - from: out/preload
+    to: .
+  - from: out/renderer
+    to: .
+
+win:
+  target:
+    - nsis
+    - portable
+  certificateFile: null
+  certificatePassword: null
+  signingHashAlgorithms:
+    - sha256
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: TokenLUV
+
+portable:
+  artifactName: TokenLUV-${version}-portable.exe
