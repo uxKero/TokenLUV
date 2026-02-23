@@ -1,8 +1,6 @@
 import { Tray, Menu, BrowserWindow, app } from 'electron'
 import { join } from 'path'
-import Store from 'electron-store'
-
-const store = new Store()
+import { triggerPollNow } from './poller'
 
 export function createTray(mainWindow: BrowserWindow): Tray | null {
   try {
@@ -11,21 +9,39 @@ export function createTray(mainWindow: BrowserWindow): Tray | null {
 
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'Actualizar ahora',
+        label: 'Mostrar / Ocultar',
         click: () => {
-          mainWindow.webContents.send('poller:forceUpdate')
+          if (mainWindow.isVisible()) {
+            mainWindow.hide()
+          } else {
+            mainWindow.show()
+            mainWindow.focus()
+          }
         }
       },
       {
-        label: 'Configuración',
+        label: 'Actualizar ahora',
         click: () => {
+          // Trigger poll directly in main process (fix: before it sent to renderer incorrectly)
+          triggerPollNow()
+          // Show window so user sees the update
           mainWindow.show()
           mainWindow.focus()
         }
       },
       { type: 'separator' },
       {
-        label: 'Salir',
+        label: 'Configuración',
+        click: () => {
+          mainWindow.show()
+          mainWindow.focus()
+          // Signal renderer to open settings
+          mainWindow.webContents.send('navigate:settings')
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Salir de TokenLUV',
         click: () => {
           app.quit()
         }
@@ -51,28 +67,44 @@ export function createTray(mainWindow: BrowserWindow): Tray | null {
   }
 }
 
-export function updateTrayTooltip(tray: Tray, data: any): void {
+export function updateTrayTooltip(tray: Tray, data: Record<string, any>, timestamp?: string): void {
   if (!tray) return
 
-  let tooltip = 'TokenLUV\n'
+  let tooltip = '❤ TokenLUV\n─────────────\n'
 
-  if (data.anthropic) {
-    tooltip += `Anthropic: ${data.anthropic.used || 0} tokens\n`
+  const lines: string[] = []
+
+  if (data.openrouter?.status === 'ok') {
+    const used = data.openrouter.used?.toFixed(2) ?? '0.00'
+    const limit = data.openrouter.limit ? `$${data.openrouter.limit.toFixed(2)}` : '—'
+    lines.push(`OpenRouter: $${used} / ${limit}`)
   }
-  if (data.openrouter) {
-    tooltip += `OpenRouter: $${(data.openrouter.used || 0).toFixed(2)} / $${(data.openrouter.limit || 0).toFixed(2)}\n`
+  if (data.openai?.status === 'ok') {
+    const used = data.openai.used?.toFixed(2) ?? '0.00'
+    const limit = data.openai.limit ? `$${data.openai.limit.toFixed(2)}` : '—'
+    lines.push(`OpenAI: $${used} / ${limit}`)
   }
-  if (data.openai) {
-    tooltip += `OpenAI: $${(data.openai.used || 0).toFixed(2)} / $${(data.openai.limit || 0).toFixed(2)}\n`
+  if (data.anthropic?.status === 'ok') {
+    lines.push(`Anthropic: Key activa`)
   }
-  if (data.xai) {
-    tooltip += `xAI: ${data.xai.status || 'Sin config'}\n`
+  if (data.xai?.status === 'ok') {
+    lines.push(`xAI: Key activa`)
   }
-  if (data.gemini) {
-    tooltip += `Gemini: ${data.gemini.status || 'Sin config'}\n`
+  if (data.gemini?.status === 'ok') {
+    lines.push(`Gemini: Key activa`)
   }
 
-  tooltip += `\nActualizado: ahora`
+  if (lines.length === 0) {
+    tooltip += 'Sin providers configurados\n'
+  } else {
+    tooltip += lines.join('\n') + '\n'
+  }
+
+  if (timestamp) {
+    const date = new Date(timestamp)
+    const timeStr = date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+    tooltip += `─────────────\nActualizado: ${timeStr}`
+  }
 
   tray.setToolTip(tooltip)
 }

@@ -1,110 +1,190 @@
-import { useState, useEffect } from 'react'
-import { RefreshCw } from 'lucide-react'
-import ProviderCard from './ProviderCard'
+import { useState, useEffect, useCallback } from 'react'
+import ProviderRow from './ProviderRow'
 
 interface ProviderCardData {
   used: number | null
   limit: number | null
   unit: 'tokens' | 'usd'
-  status: 'ok' | 'error' | 'loading'
+  status: 'ok' | 'error' | 'loading' | 'no-key'
+  model?: string   // auto-detected by the main process
+  raw?: {
+    hasMgmtKey?: boolean
+    creditsStatus?: number | null
+    activityStatus?: number | null
+    activityItems?: any[]
+  }
 }
 
 interface ProviderDataMap {
   [key: string]: ProviderCardData
 }
 
-const PROVIDERS = [
-  { id: 'anthropic', name: 'Anthropic', icon: '🟣' },
-  { id: 'openai', name: 'OpenAI', icon: '🔵' },
-  { id: 'openrouter', name: 'OpenRouter', icon: '🟢' },
-  { id: 'xai', name: 'xAI', icon: '⚫' },
-  { id: 'gemini', name: 'Gemini', icon: '🔴' }
+const ALL_PROVIDERS = [
+  { id: 'anthropic', name: 'Anthropic' },
+  { id: 'openai', name: 'OpenAI' },
+  { id: 'openrouter', name: 'OpenRouter' },
+  { id: 'xai', name: 'xAI' },
+  { id: 'gemini', name: 'Gemini' }
 ]
 
+function formatTimestamp(iso: string): string {
+  try {
+    const date = new Date(iso)
+    return date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    return '--:--'
+  }
+}
+
 export default function Dashboard() {
-  const [data, setData] = useState<ProviderDataMap>({})
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [data,        setData]        = useState<ProviderDataMap>({})
+  const [modelLabels, setModelLabels] = useState<Record<string, string>>({})
+  const [lastUpdate,  setLastUpdate]  = useState<string>('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  useEffect(() => {
-    // Initial load
-    window.tokenLuvApi.getProviderData().then((data: any) => {
-      setData(data || {})
-    })
-
-    // Setup event listener for updates
-    const ipcRenderer = (window as any).ipcRenderer || {}
-
-    if (ipcRenderer.on) {
-      ipcRenderer.on('provider:dataUpdated', (_event: any, update: any) => {
-        setData(update.data || {})
-        setLastUpdate(new Date(update.timestamp))
-        setIsLoading(false)
-      })
-    }
+  const reloadModelLabels = useCallback(async () => {
+    const api = (window as any).tokenLuvApi
+    if (!api) return
+    const labels = await api.getConfig('modelLabels', {})
+    setModelLabels(labels || {})
   }, [])
 
-  const handleUpdate = async () => {
-    setIsLoading(true)
-    await window.tokenLuvApi.forceUpdate()
-    // Data will be received via event
+  const resizeWindow = useCallback((count: number) => {
+    const tokenLuvApi = (window as any).tokenLuvApi
+    if (tokenLuvApi) tokenLuvApi.resizeWindow(count)
+  }, [])
+
+  const handleUpdate = useCallback((update: { data: ProviderDataMap; timestamp: string }) => {
+    const newData = update.data || {}
+    setData(newData)
+    setLastUpdate(update.timestamp || '')
+    setIsRefreshing(false)
+    // Reload model labels so new names show immediately after saving settings
+    reloadModelLabels()
+
+    const activeCount = ALL_PROVIDERS.filter(p => {
+      const d = newData[p.id]
+      return d && d.status !== 'no-key'
+    }).length
+    resizeWindow(activeCount)
+  }, [resizeWindow, reloadModelLabels])
+
+  useEffect(() => {
+    const tokenLuvApi = (window as any).tokenLuvApi
+    if (!tokenLuvApi) return
+
+    Promise.all([
+      tokenLuvApi.getProviderData(),
+      tokenLuvApi.getConfig('lastUpdate',   ''),
+      tokenLuvApi.getConfig('modelLabels',  {})
+    ]).then(([provData, ts, labels]: [ProviderDataMap, string, Record<string, string>]) => {
+      const safeData = provData || {}
+      setData(safeData)
+      setLastUpdate(ts || '')
+      setModelLabels(labels || {})
+
+      const activeCount = ALL_PROVIDERS.filter(p => {
+        const d = safeData[p.id]
+        return d && d.status !== 'no-key'
+      }).length
+      resizeWindow(activeCount)
+    })
+
+    const cleanup = tokenLuvApi.onProviderDataUpdate(handleUpdate)
+    return () => { if (typeof cleanup === 'function') cleanup() }
+  }, [handleUpdate, resizeWindow])
+
+  const handleRefresh = async () => {
+    const tokenLuvApi = (window as any).tokenLuvApi
+    if (!tokenLuvApi || isRefreshing) return
+    setIsRefreshing(true)
+    await tokenLuvApi.forceUpdate()
+    setTimeout(() => setIsRefreshing(false), 5000)
   }
 
-  const timeAgo = lastUpdate
-    ? (() => {
-        const seconds = Math.floor((Date.now() - lastUpdate.getTime()) / 1000)
-        if (seconds < 60) return 'hace segundos'
-        const minutes = Math.floor(seconds / 60)
-        if (minutes < 60) return `hace ${minutes} min`
-        const hours = Math.floor(minutes / 60)
-        return `hace ${hours}h`
-      })()
-    : 'nunca'
+  // Only show providers that have a key configured (status !== 'no-key' and !== undefined/loading-initial)
+  const activeProviders = ALL_PROVIDERS.filter(p => {
+    const d = data[p.id]
+    return d && d.status !== 'no-key'
+  })
 
-  const getCardData = (provId: string): ProviderCardData => {
-    return (
-      data[provId] || {
-        used: null,
-        limit: null,
-        unit: 'usd' as const,
-        status: 'loading' as const
-      }
-    )
+  const getProviderData = (provId: string): ProviderCardData => {
+    return data[provId] || { used: null, limit: null, unit: 'usd', status: 'loading' }
   }
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Provider Cards Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {PROVIDERS.map((provider) => {
-          const provData = getCardData(provider.id)
-          return (
-            <ProviderCard
+    <div
+      className="w-full h-full flex flex-col"
+      style={{
+        backgroundColor: '#111118',
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: '12px',
+        color: '#f8fafc'
+      }}
+    >
+      {/* Providers — solo los activos */}
+      <div className="flex-1 px-2 pt-2 space-y-0.5">
+        {activeProviders.length > 0 ? (
+          activeProviders.map(provider => (
+            <ProviderRow
               key={provider.id}
+              id={provider.id}
               name={provider.name}
-              icon={provider.icon}
-              used={provData.used}
-              limit={provData.limit}
-              unit={provData.unit}
-              status={provData.status}
+              used={getProviderData(provider.id).used}
+              limit={getProviderData(provider.id).limit}
+              unit={getProviderData(provider.id).unit}
+              status={getProviderData(provider.id).status}
+              modelLabel={
+                (modelLabels[provider.id] && modelLabels[provider.id].trim())
+                  ? modelLabels[provider.id].trim()
+                  : getProviderData(provider.id).model
+              }
+              rawData={getProviderData(provider.id).raw}
             />
-          )
-        })}
+          ))
+        ) : (
+          <div style={{
+            padding: '8px 6px',
+            fontSize: '10px',
+            color: '#334155',
+            textAlign: 'center'
+          }}>
+            Sin API keys · Abrí ⚙️ para configurar
+          </div>
+        )}
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between text-sm text-slate-400 mt-6 pt-4 border-t border-slate-700">
-        <div>
-          <p>Última actualiz.</p>
-          <p className="text-slate-300">{timeAgo}</p>
-        </div>
+      <div style={{
+        borderTop: '1px solid #1e1e2e',
+        padding: '4px 8px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <span style={{ fontSize: '9px', color: '#334155' }}>
+          {lastUpdate ? `↺ ${formatTimestamp(lastUpdate)}` : '↺ sin datos aún'}
+        </span>
         <button
-          onClick={handleUpdate}
-          disabled={isLoading}
-          className="bg-purple-600 hover:bg-purple-700 disabled:bg-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          title="Actualizar ahora"
+          style={{
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: isRefreshing ? 'not-allowed' : 'pointer',
+            color: isRefreshing ? '#334155' : '#8b5cf6',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            opacity: isRefreshing ? 0.5 : 1,
+            padding: '2px 4px'
+          }}
+          onMouseEnter={e => { if (!isRefreshing) (e.currentTarget as HTMLElement).style.color = '#a78bfa' }}
+          onMouseLeave={e => { if (!isRefreshing) (e.currentTarget as HTMLElement).style.color = '#8b5cf6' }}
         >
-          <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-          {isLoading ? 'Actualizando...' : 'Actualizar ahora'}
+          <span style={{ fontSize: '12px' }}>⟳</span>
+          <span style={{ fontSize: '9px' }}>{isRefreshing ? 'actualizando...' : 'refresh'}</span>
         </button>
       </div>
     </div>

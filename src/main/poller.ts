@@ -5,13 +5,20 @@ import { OpenAIProvider } from './providers/openai'
 import { AnthropicProvider } from './providers/anthropic'
 import { XAIProvider } from './providers/xai'
 import { GeminiProvider } from './providers/gemini'
-import { Provider, ProviderData } from './providers/base'
+import { Provider } from './providers/base'
 
 const store = new Store()
 let pollerInterval: NodeJS.Timeout | null = null
 const providers: Map<string, Provider> = new Map()
+let onDataCallback: ((data: Record<string, any>, timestamp: string) => void) | null = null
 
-export function initPoller(): void {
+// Export so tray (and others) can trigger a poll directly
+export function triggerPollNow(): void {
+  pollProviders()
+}
+
+export function initPoller(onData?: (data: Record<string, any>, timestamp: string) => void): void {
+  if (onData) onDataCallback = onData
   // Initialize providers
   providers.set('openrouter', new OpenRouterProvider())
   providers.set('openai', new OpenAIProvider())
@@ -20,9 +27,7 @@ export function initPoller(): void {
   providers.set('gemini', new GeminiProvider())
 
   ipcMain.handle('poller:start', () => {
-    if (!pollerInterval) {
-      startPoller()
-    }
+    if (!pollerInterval) startPoller()
   })
 
   ipcMain.handle('poller:stop', () => {
@@ -33,22 +38,23 @@ export function initPoller(): void {
     pollProviders()
   })
 
-  ipcMain.handle('provider:getData', () => {
-    return store.get('providerData', {})
-  })
-
-  // Auto-start poller on app ready
+  // Auto-start
   startPoller()
+}
+
+function getIntervalMs(): number {
+  const minutes = store.get('refreshInterval', 5) as number
+  return Math.max(1, minutes) * 60 * 1000
 }
 
 function startPoller(): void {
   console.log('Starting poller...')
-  pollProviders() // Poll immediately
+  pollProviders() // Poll immediately on start
 
-  // Then poll every 5 minutes
+  const intervalMs = getIntervalMs()
   pollerInterval = setInterval(() => {
     pollProviders()
-  }, 5 * 60 * 1000)
+  }, intervalMs)
 }
 
 function stopPoller(): void {
@@ -58,23 +64,26 @@ function stopPoller(): void {
   }
 }
 
+export function restartPoller(): void {
+  stopPoller()
+  startPoller()
+}
+
 async function pollProviders(): Promise<void> {
   console.log('Polling providers...')
 
   const providerData: Record<string, any> = {}
   const apiKeys = store.get('apiKeys', {}) as Record<string, string>
 
-  // Poll each configured provider
   for (const [provId, provider] of providers) {
     const apiKey = apiKeys[provId]
 
     if (!apiKey) {
       providerData[provId] = {
-        status: 'error' as const,
+        status: 'no-key' as const,
         used: null,
         limit: null,
-        unit: 'usd' as const,
-        error: 'No API key configured'
+        unit: 'usd' as const
       }
       continue
     }
@@ -96,9 +105,13 @@ async function pollProviders(): Promise<void> {
 
   const timestamp = new Date().toISOString()
 
-  // Save to store
   store.set('providerData', providerData)
   store.set('lastUpdate', timestamp)
+
+  // Notify tray tooltip callback
+  if (onDataCallback) {
+    onDataCallback(providerData, timestamp)
+  }
 
   // Broadcast to all windows
   BrowserWindow.getAllWindows().forEach((win) => {

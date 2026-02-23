@@ -1,30 +1,40 @@
 appId: com.tokenluvapp.desktop
 productName: TokenLUV
+copyright: Copyright © 2025 TokenLUV
+
 directories:
   buildResources: assets
+  output: dist-release
+
+# Archivos a incluir — preservamos estructura out/ para paths relativos correctos
 files:
-  - from: out/main
-    to: .
-  - from: out/preload
-    to: .
-  - from: out/renderer
-    to: .
+  - "out/**"
+  - "package.json"
 
+# Windows
 win:
+  icon: assets/icon.ico
+  # Omite el parcheo del exe (rcedit / Wine) — necesario para cross-compile desde Linux.
+  # La app funciona igual; sólo el exe no tendrá el icono embebido en la barra de tareas.
+  # Para build final con icono: correr en Windows o vía GitHub Actions.
+  signAndEditExecutable: false
   target:
-    - nsis
-    - portable
-  certificateFile: null
-  certificatePassword: null
-  signingHashAlgorithms:
-    - sha256
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
 
+# NSIS installer
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: TokenLUV
+  runAfterFinish: true
 
+# Portable: exe único sin instalación
 portable:
   artifactName: TokenLUV-${version}-portable.exe

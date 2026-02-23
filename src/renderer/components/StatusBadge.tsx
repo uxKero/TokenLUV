@@ -3,18 +3,25 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
-  const styles =
-    status === 'ok'
-      ? 'bg-green-900/50 text-green-300'
-      : status === 'error'
-        ? 'bg-red-900/50 text-red-300'
-        : 'bg-slate-700 text-slate-300 animate-pulse'
+  if (status === 'ok') {
+    return (
+      <span className="text-xs font-mono flex items-center gap-1">
+        <span className="w-2 h-2 rounded-full bg-term-green dot-ping" />
+      </span>
+    )
+  }
 
-  const symbol = status === 'ok' ? '✓' : status === 'error' ? '✕' : '⟳'
+  if (status === 'error') {
+    return (
+      <span className="text-xs font-mono flex items-center gap-1">
+        <span className="w-2 h-2 rounded-full bg-term-red" />
+      </span>
+    )
+  }
 
   return (
-    <span className={`text-xs px-2 py-1 rounded ${styles} font-semibold`}>
-      {symbol}
+    <span className="text-xs font-mono flex items-center gap-1 animate-spin">
+      <span className="w-2 h-2 rounded-full bg-term-cyan" />
     </span>
   )
 }

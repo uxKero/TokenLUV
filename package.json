@@ -7,11 +7,12 @@
   "author": "TokenLUV",
   "license": "MIT",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "postbuild": "node scripts/post-build.js",
+    "dev": "node scripts/dev.js",
+    "build": "electron-vite build && npm run postbuild",
     "preview": "electron-vite preview",
-    "pack": "electron-builder --publish never",
-    "dist": "electron-builder"
+    "pack": "electron-builder --config electron-builder.yml --publish never",
+    "dist": "electron-builder --config electron-builder.yml"
   },
   "dependencies": {
     "electron-store": "^10.0.0",
@@ -37,30 +38,7 @@
     "typescript": "^5.3.3",
     "vite": "^5.0.8"
   },
-  "build": {
-    "appId": "com.tokenluvapp.desktop",
-    "productName": "TokenLUV",
-    "asar": true,
-    "files": [
-      "dist-electron",
-      "dist",
-      "assets"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "certificateFile": null,
-      "certificatePassword": null,
-      "signingHashAlgorithms": [
-        "sha256"
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    }
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.59.0"
   }
 }

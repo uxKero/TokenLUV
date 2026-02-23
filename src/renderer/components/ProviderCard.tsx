@@ -23,39 +23,51 @@ export default function ProviderCard({
       ? `$${used?.toFixed(2) || '0.00'} / $${limit?.toFixed(2) || '0.00'}`
       : `${(used || 0).toLocaleString()} / ${(limit || 0).toLocaleString()}`
 
-  const progressBarColor =
-    percentage > 80 ? 'bg-red-500' : percentage > 50 ? 'bg-yellow-500' : 'bg-green-500'
+  const barColor =
+    percentage > 80 ? 'bg-term-red' : percentage > 60 ? 'bg-term-amber' : 'bg-term-green'
+
+  const barClasses =
+    percentage > 80 ? 'bg-term-red animate-pulse' : barColor
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 hover:border-slate-600 transition">
+    <div className="bg-card border border-border rounded-xl p-4 hover:border-accent/50 hover:shadow-lg transition-all duration-200 glow-accent">
+      {/* Header: emoji + name + status */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{icon}</span>
-          <h3 className="font-semibold text-sm">{name}</h3>
+        <div className="flex items-center gap-2.5">
+          <span className="text-lg">{icon}</span>
+          <h3 className="font-semibold text-sm font-sans">{name}</h3>
         </div>
         <StatusBadge status={status} />
       </div>
 
+      {/* Divider */}
+      <div className="h-px bg-border/40 mb-3"></div>
+
       {status === 'ok' && used !== null && limit !== null ? (
         <>
-          <p className="text-xs text-slate-400 mb-2">{displayValue}</p>
+          {/* Value in JetBrains Mono + cyan */}
+          <p className="text-xs font-mono text-term-cyan mb-3">{displayValue}</p>
 
           {/* Progress bar */}
-          <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden mb-2">
+          <div className="w-full bg-border rounded-full h-2.5 overflow-hidden mb-2">
             <div
-              className={`h-full ${progressBarColor} transition-all duration-300`}
+              className={`h-full ${barClasses} transition-all duration-600 ease-out`}
               style={{ width: `${Math.min(percentage, 100)}%` }}
             />
           </div>
 
-          <p className="text-xs text-slate-300">{percentage}%</p>
+          {/* Percentage */}
+          <p className="text-xs font-mono text-term-cyan">{percentage}%</p>
         </>
       ) : status === 'loading' ? (
-        <p className="text-xs text-slate-400 animate-pulse">Cargando...</p>
+        <div className="space-y-2">
+          <div className="h-4 bg-border rounded animate-pulse w-20"></div>
+          <div className="h-2 bg-border rounded animate-pulse"></div>
+        </div>
       ) : status === 'error' ? (
-        <p className="text-xs text-red-400">Error de conexión</p>
+        <p className="text-xs text-term-red font-mono">Error de conexión</p>
       ) : (
-        <p className="text-xs text-slate-400">Sin configurar</p>
+        <p className="text-xs text-text-muted font-mono">Sin configurar</p>
       )}
     </div>
   )

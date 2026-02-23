@@ -1,9 +1,20 @@
 node_modules/
 dist/
 dist-electron/
+dist-release/
+out/
 .vscode/
 *.log
 .env
 .env.local
-dist-builder/
-*.exe
+
+# electron-store (datos de usuario — no van al repo)
+*.json.bak
+
+# Archivos de debug de electron-builder
+builder-debug.yml
+builder-effective-config.yaml
+
+# OS
+.DS_Store
+Thumbs.db

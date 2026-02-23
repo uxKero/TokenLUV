@@ -2,7 +2,8 @@ export interface ProviderData {
   used: number | null
   limit: number | null
   unit: 'tokens' | 'usd'
-  status: 'ok' | 'error' | 'loading'
+  status: 'ok' | 'error' | 'loading' | 'no-key'
+  model?: string   // auto-detected best model available for this key
   raw?: any
 }
 

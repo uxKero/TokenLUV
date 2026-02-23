@@ -2,20 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Terminal Cyberpunk Theme */
+:root {
+  --bg-base: #111118;
+  --bg-card: #1a1a24;
+  --bg-border: #2a2a3a;
+  --accent: #8b5cf6;
+  --accent2: #ec4899;
+  --term-green: #22c55e;
+  --term-cyan: #67e8f9;
+  --term-amber: #fbbf24;
+  --term-red: #ef4444;
+  --text: #f8fafc;
+  --text-muted: #475569;
+}
+
+/* Global */
 * {
   -webkit-user-select: none;
   user-select: none;
+  box-sizing: border-box;
 }
 
 input,
-textarea {
+textarea,
+button {
   -webkit-user-select: text;
   user-select: text;
 }
 
+html,
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
-    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Drag regions */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Custom scrollbar — thin terminal style */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a3a;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a4a;
+}
+
+/* Animations */
+@keyframes pulse-bar {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Input focus styles */
+input:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+}
+
+/* Button styles */
+button {
+  transition: all 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+button:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
