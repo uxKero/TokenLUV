@@ -96,9 +96,10 @@ public sealed class AnthropicProviderClient : ProviderClientBase
         ClaudeWindowSnapshot? sonnet = TryParseClaudeWindow(json.RootElement, "seven_day_sonnet")
             ?? TryParseClaudeWindow(json.RootElement, "seven_day_opus");
         ClaudeExtraUsageSnapshot? extraUsage = TryParseExtraUsage(json.RootElement);
-        double? monthlyCost = !string.IsNullOrWhiteSpace(credentials.ProvisioningKey)
-            ? await TryGetAdminCostAsync(credentials.ProvisioningKey, cancellationToken)
+        AnthropicAdminUsageSummary? adminUsage = !string.IsNullOrWhiteSpace(credentials.ProvisioningKey)
+            ? await TryGetAdminUsageSummaryAsync(credentials.ProvisioningKey, cancellationToken)
             : null;
+        double? monthlyCost = adminUsage?.MonthlyCostUsd;
 
         if (primary is null)
         {
@@ -133,6 +134,12 @@ public sealed class AnthropicProviderClient : ProviderClientBase
                 RightLabel = $"{Math.Clamp(extraPercent, 0, 100):0}% used",
                 Footer = "Monthly extra-usage budget"
             });
+        }
+
+        ProviderDetailMetric? cacheMetric = CreateCacheMetric(adminUsage);
+        if (cacheMetric is not null)
+        {
+            metrics.Add(cacheMetric);
         }
 
         metrics.Add(new ProviderDetailMetric
@@ -203,7 +210,25 @@ public sealed class AnthropicProviderClient : ProviderClientBase
                 statusPageUrl: "https://status.anthropic.com/");
         }
 
-        double? totalUsd = await TryGetAdminCostAsync(credentials.ProvisioningKey, cancellationToken);
+        AnthropicAdminUsageSummary? adminUsage = await TryGetAdminUsageSummaryAsync(credentials.ProvisioningKey, cancellationToken);
+        double? totalUsd = adminUsage?.MonthlyCostUsd;
+        List<ProviderDetailMetric> metrics =
+        [
+            new ProviderDetailMetric
+            {
+                Title = "Cost",
+                Summary = totalUsd is null ? "could not read cost" : $"{FormatUsd(totalUsd.Value)} this month",
+                RightLabel = totalUsd is null ? "admin error" : "admin api",
+                Footer = "Admin cost report only. Connected Claude auth is still better for session and weekly windows."
+            }
+        ];
+
+        ProviderDetailMetric? cacheMetric = CreateCacheMetric(adminUsage);
+        if (cacheMetric is not null)
+        {
+            metrics.Add(cacheMetric);
+        }
+
         return CreateSnapshot(
             ProviderDataQuality.Real,
             UsageUnit.Usd,
@@ -216,16 +241,7 @@ public sealed class AnthropicProviderClient : ProviderClientBase
             primaryValueOverride: totalUsd is null ? "admin key error" : $"{FormatUsd(totalUsd.Value)} spent",
             secondaryValueOverride: totalUsd is null ? "could not read cost" : "monthly admin report",
             progressPercentOverride: totalUsd is null ? 16 : (totalUsd > 0 ? 24 : 0),
-            detailMetrics:
-            [
-                new ProviderDetailMetric
-                {
-                    Title = "Cost",
-                    Summary = totalUsd is null ? "could not read cost" : $"{FormatUsd(totalUsd.Value)} this month",
-                    RightLabel = totalUsd is null ? "admin error" : "admin api",
-                    Footer = "Admin cost report only. Connected Claude auth is still better for session and weekly windows."
-                }
-            ],
+            detailMetrics: metrics,
             usageDashboardUrl: "https://claude.ai/settings/usage",
             statusPageUrl: "https://status.anthropic.com/");
     }
@@ -271,18 +287,18 @@ public sealed class AnthropicProviderClient : ProviderClientBase
         return true;
     }
 
-    private async Task<double?> TryGetAdminCostAsync(string provisioningKey, CancellationToken cancellationToken)
+    private async Task<AnthropicAdminUsageSummary?> TryGetAdminUsageSummaryAsync(string provisioningKey, CancellationToken cancellationToken)
     {
         DateTimeOffset utcNow = DateTimeOffset.UtcNow;
         DateTimeOffset start = new(new DateTime(utcNow.Year, utcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc));
         string end = utcNow.AddDays(1).ToString("O");
-        string url =
+        string costUrl =
             "https://api.anthropic.com/v1/organizations/cost_report" +
             $"?starting_at={Uri.EscapeDataString(start.ToString("O"))}" +
             $"&ending_at={Uri.EscapeDataString(end)}" +
             "&bucket_width=1d";
 
-        using HttpRequestMessage costRequest = CreateRequest(HttpMethod.Get, url);
+        using HttpRequestMessage costRequest = CreateRequest(HttpMethod.Get, costUrl);
         costRequest.Headers.Add("x-api-key", provisioningKey);
         costRequest.Headers.Add("anthropic-version", "2023-06-01");
 
@@ -310,7 +326,65 @@ public sealed class AnthropicProviderClient : ProviderClientBase
             }
         }
 
-        return totalCents / 100d;
+        string usageUrl =
+            "https://api.anthropic.com/v1/organizations/usage_report/messages" +
+            $"?starting_at={Uri.EscapeDataString(start.ToString("O"))}" +
+            $"&ending_at={Uri.EscapeDataString(end)}" +
+            "&bucket_width=1d";
+
+        using HttpRequestMessage usageRequest = CreateRequest(HttpMethod.Get, usageUrl);
+        usageRequest.Headers.Add("x-api-key", provisioningKey);
+        usageRequest.Headers.Add("anthropic-version", "2023-06-01");
+
+        using HttpResponseMessage usageResponse = await HttpClient.SendAsync(usageRequest, cancellationToken);
+        if (!usageResponse.IsSuccessStatusCode)
+        {
+            return new AnthropicAdminUsageSummary
+            {
+                MonthlyCostUsd = totalCents / 100d
+            };
+        }
+
+        using JsonDocument usageJson = await ReadJsonAsync(usageResponse, cancellationToken);
+        double uncachedInputTokens = 0;
+        double cacheReadInputTokens = 0;
+        double cacheCreationInputTokens = 0;
+
+        if (usageJson.RootElement.TryGetProperty("data", out JsonElement usageBuckets) && usageBuckets.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement bucket in usageBuckets.EnumerateArray())
+            {
+                if (!bucket.TryGetProperty("results", out JsonElement results) || results.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (JsonElement result in results.EnumerateArray())
+                {
+                    uncachedInputTokens += GetDouble(result, "uncached_input_tokens") ?? GetDouble(result, "input_tokens") ?? 0;
+                    cacheReadInputTokens += GetDouble(result, "cache_read_input_tokens") ?? 0;
+
+                    if (result.TryGetProperty("cache_creation", out JsonElement cacheCreation) && cacheCreation.ValueKind == JsonValueKind.Object)
+                    {
+                        cacheCreationInputTokens += GetDouble(cacheCreation, "ephemeral_1h_input_tokens") ?? 0;
+                        cacheCreationInputTokens += GetDouble(cacheCreation, "ephemeral_5m_input_tokens") ?? 0;
+                    }
+
+                    cacheCreationInputTokens += GetDouble(result, "cache_creation_input_tokens") ?? 0;
+                }
+            }
+        }
+
+        double denominator = uncachedInputTokens + cacheReadInputTokens;
+        double? cacheHitRatePercent = denominator <= 0 ? null : (cacheReadInputTokens / denominator) * 100d;
+        return new AnthropicAdminUsageSummary
+        {
+            MonthlyCostUsd = totalCents / 100d,
+            UncachedInputTokens = uncachedInputTokens,
+            CacheReadInputTokens = cacheReadInputTokens,
+            CacheCreationInputTokens = cacheCreationInputTokens,
+            CacheHitRatePercent = cacheHitRatePercent
+        };
     }
 
     private static ClaudeWindowSnapshot? TryParseClaudeWindow(JsonElement root, string propertyName)
@@ -430,6 +504,44 @@ public sealed class AnthropicProviderClient : ProviderClientBase
 
     private static string FormatUsd(double value) => $"${value:N2}";
 
+    private static string FormatTokens(double value)
+    {
+        if (value >= 1_000_000)
+        {
+            return $"{value / 1_000_000:0.0}M";
+        }
+
+        if (value >= 1_000)
+        {
+            return $"{value / 1_000:0.#}K";
+        }
+
+        return value.ToString("N0");
+    }
+
+    private static ProviderDetailMetric? CreateCacheMetric(AnthropicAdminUsageSummary? summary)
+    {
+        if (summary?.CacheReadInputTokens is null || summary.CacheReadInputTokens <= 0)
+        {
+            return null;
+        }
+
+        double hitRate = Math.Clamp(summary.CacheHitRatePercent ?? 0, 0, 100);
+        string footer = summary.CacheCreationInputTokens > 0
+            ? $"Admin messages report. Cache writes: {FormatTokens(summary.CacheCreationInputTokens.Value)} tokens."
+            : "Admin messages report.";
+
+        return new ProviderDetailMetric
+        {
+            Title = "Input cache hit",
+            Percent = hitRate,
+            PercentLabelOverride = $"{hitRate:0}% cached",
+            Summary = $"{FormatTokens(summary.CacheReadInputTokens.Value)} cached",
+            RightLabel = $"{FormatTokens(summary.UncachedInputTokens ?? 0)} uncached",
+            Footer = footer
+        };
+    }
+
     private static ProviderDetailMetric CreateWindowMetric(string title, double percent, DateTimeOffset? resetAt, string footer)
     {
         return new ProviderDetailMetric
@@ -458,5 +570,14 @@ public sealed class AnthropicProviderClient : ProviderClientBase
     {
         public required double UsedUsd { get; init; }
         public required double LimitUsd { get; init; }
+    }
+
+    private sealed class AnthropicAdminUsageSummary
+    {
+        public required double MonthlyCostUsd { get; init; }
+        public double? UncachedInputTokens { get; init; }
+        public double? CacheReadInputTokens { get; init; }
+        public double? CacheCreationInputTokens { get; init; }
+        public double? CacheHitRatePercent { get; init; }
     }
 }

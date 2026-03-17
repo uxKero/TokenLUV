@@ -11,8 +11,11 @@ public sealed class ProviderDetailMetric
     public string RightLabel { get; init; } = string.Empty;
     public string Footer { get; init; } = string.Empty;
     public double? Percent { get; init; }
+    public string? PercentLabelOverride { get; init; }
 
-    public string PercentLabel => Percent is null ? Summary : $"{Math.Clamp(Percent.Value, 0, 100):0}% used";
+    public string PercentLabel => !string.IsNullOrWhiteSpace(PercentLabelOverride)
+        ? PercentLabelOverride!
+        : Percent is null ? Summary : $"{Math.Clamp(Percent.Value, 0, 100):0}% used";
 
     public string AsciiBarText
     {

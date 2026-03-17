@@ -6,17 +6,17 @@ namespace TokenLuv.WinUI.Services.Providers;
 public sealed class OpenAIProviderClient : ProviderClientBase
 {
     private static readonly string[] ModelPriority = ["o3", "o1", "gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5"];
-    private static readonly Dictionary<string, (double Input, double Output)> Pricing = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, OpenAiPricing> Pricing = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["gpt-4o"] = (2.50, 10.00),
-        ["gpt-4o-mini"] = (0.15, 0.60),
-        ["o1"] = (15.00, 60.00),
-        ["o1-mini"] = (3.00, 12.00),
-        ["o3"] = (10.00, 40.00),
-        ["o3-mini"] = (1.10, 4.40),
-        ["gpt-4-turbo"] = (10.00, 30.00),
-        ["gpt-4"] = (30.00, 60.00),
-        ["gpt-3.5-turbo"] = (0.50, 1.50)
+        ["gpt-4o"] = new(2.50, 1.25, 10.00),
+        ["gpt-4o-mini"] = new(0.15, 0.075, 0.60),
+        ["o1"] = new(15.00, null, 60.00),
+        ["o1-mini"] = new(3.00, null, 12.00),
+        ["o3"] = new(10.00, null, 40.00),
+        ["o3-mini"] = new(1.10, null, 4.40),
+        ["gpt-4-turbo"] = new(10.00, null, 30.00),
+        ["gpt-4"] = new(30.00, null, 60.00),
+        ["gpt-3.5-turbo"] = new(0.50, null, 1.50)
     };
 
     public override string ProviderId => "openai";
@@ -122,12 +122,12 @@ public sealed class OpenAIProviderClient : ProviderClientBase
         }
 
         double? balance = TryParseCreditsBalance(json.RootElement);
-        double? monthlyCost = !string.IsNullOrWhiteSpace(credentials.ProvisioningKey)
-            ? await TryGetEstimatedOrgCostAsync(credentials.ProvisioningKey, cancellationToken)
+        OpenAiOrgUsageSummary? orgSummary = !string.IsNullOrWhiteSpace(credentials.ProvisioningKey)
+            ? await TryGetOrgUsageSummaryAsync(credentials.ProvisioningKey, cancellationToken)
             : null;
 
         string compactLine1 = $"5h {primary.UsedPercent:0}% used";
-        string compactLine2 = BuildCompactDetail("weekly", secondary?.UsedPercent, primary.ResetAt, balance);
+        string compactLine2 = BuildCompactDetail("weekly", secondary?.UsedPercent, primary.ResetAt, balance, orgSummary);
         List<ProviderDetailMetric> metrics =
         [
             CreateWindowMetric("Session", primary.UsedPercent, primary.ResetAt, "5-hour Codex usage window")
@@ -149,14 +149,20 @@ public sealed class OpenAIProviderClient : ProviderClientBase
             });
         }
 
+        ProviderDetailMetric? cacheMetric = CreateCacheMetric(orgSummary);
+        if (cacheMetric is not null)
+        {
+            metrics.Add(cacheMetric);
+        }
+
         metrics.Add(new ProviderDetailMetric
         {
             Title = "Cost",
-            Summary = monthlyCost is null ? "org estimate unavailable" : $"{FormatUsd(monthlyCost.Value)} this month",
-            RightLabel = monthlyCost is null ? "add org key" : "estimated",
-            Footer = monthlyCost is null
+            Summary = orgSummary is null ? "org estimate unavailable" : $"{FormatUsd(orgSummary.EstimatedCostUsd)} this month",
+            RightLabel = orgSummary is null ? "add org key" : "estimated",
+            Footer = orgSummary is null
                 ? "For a cost line, add a legacy org key with usage.read access."
-                : "Estimated from OpenAI organization usage."
+                : "Estimated from OpenAI organization usage, including cache hits when pricing is available."
         });
 
         return CreateSnapshot(
@@ -192,15 +198,43 @@ public sealed class OpenAIProviderClient : ProviderClientBase
         string? model = PickBestModel(modelsJson.RootElement);
 
         double? used = null;
+        OpenAiOrgUsageSummary? orgSummary = null;
         if (!string.IsNullOrWhiteSpace(credentials.ProvisioningKey))
         {
-            used = await TryGetEstimatedOrgCostAsync(credentials.ProvisioningKey, cancellationToken);
+            orgSummary = await TryGetOrgUsageSummaryAsync(credentials.ProvisioningKey, cancellationToken);
+            used = orgSummary?.EstimatedCostUsd;
         }
 
         string compactLine1 = used is null ? "validated only" : $"{FormatUsd(used.Value)} spent";
         string compactLine2 = used is null
             ? "add org key for cost"
             : "legacy platform estimate";
+
+        List<ProviderDetailMetric> metrics =
+        [
+            new ProviderDetailMetric
+            {
+                Title = "API key",
+                Summary = "validated",
+                RightLabel = model ?? "unknown model",
+                Footer = "This mode is only an estimate. Prefer a connected Codex account for live windows."
+            },
+            new ProviderDetailMetric
+            {
+                Title = "Cost",
+                Summary = used is null ? "estimate unavailable" : $"{FormatUsd(used.Value)} this month",
+                RightLabel = used is null ? "needs org key" : "estimated",
+                Footer = used is null
+                    ? "Add an org key with usage.read access."
+                    : "Estimated from OpenAI organization usage, including cache hits when pricing is available."
+            }
+        ];
+
+        ProviderDetailMetric? cacheMetric = CreateCacheMetric(orgSummary);
+        if (cacheMetric is not null)
+        {
+            metrics.Add(cacheMetric);
+        }
 
         return CreateSnapshot(
             ProviderDataQuality.Estimated,
@@ -215,23 +249,7 @@ public sealed class OpenAIProviderClient : ProviderClientBase
             primaryValueOverride: compactLine1,
             secondaryValueOverride: compactLine2,
             progressPercentOverride: used is null ? 14 : 34,
-            detailMetrics:
-            [
-                new ProviderDetailMetric
-                {
-                    Title = "API key",
-                    Summary = "validated",
-                    RightLabel = model ?? "unknown model",
-                    Footer = "This mode is only an estimate. Prefer a connected Codex account for live windows."
-                },
-                new ProviderDetailMetric
-                {
-                    Title = "Cost",
-                    Summary = used is null ? "estimate unavailable" : $"{FormatUsd(used.Value)} this month",
-                    RightLabel = used is null ? "needs org key" : "estimated",
-                    Footer = used is null ? "Add an org key with usage.read access." : "Estimated from OpenAI organization usage."
-                }
-            ],
+            detailMetrics: metrics,
             usageDashboardUrl: "https://platform.openai.com/usage",
             statusPageUrl: "https://status.openai.com/");
     }
@@ -307,7 +325,7 @@ public sealed class OpenAIProviderClient : ProviderClientBase
         return null;
     }
 
-    private static string BuildCompactDetail(string label, double? percent, DateTimeOffset? resetAt, double? balance)
+    private static string BuildCompactDetail(string label, double? percent, DateTimeOffset? resetAt, double? balance, OpenAiOrgUsageSummary? orgSummary)
     {
         List<string> parts = [];
         if (percent is not null)
@@ -320,6 +338,11 @@ public sealed class OpenAIProviderClient : ProviderClientBase
             parts.Add($"{FormatUsd(balance.Value)} left");
         }
 
+        if (orgSummary?.CacheHitRatePercent is > 0)
+        {
+            parts.Add($"cache {orgSummary.CacheHitRatePercent.Value:0}%");
+        }
+
         string? resetLabel = DescribeReset(resetAt);
         if (!string.IsNullOrWhiteSpace(resetLabel))
         {
@@ -329,7 +352,7 @@ public sealed class OpenAIProviderClient : ProviderClientBase
         return parts.Count == 0 ? "live codex usage" : string.Join(" · ", parts);
     }
 
-    private async Task<double?> TryGetEstimatedOrgCostAsync(string orgKey, CancellationToken cancellationToken)
+    private async Task<OpenAiOrgUsageSummary?> TryGetOrgUsageSummaryAsync(string orgKey, CancellationToken cancellationToken)
     {
         DateTimeOffset utcNow = DateTimeOffset.UtcNow;
         long startTime = new DateTimeOffset(new DateTime(utcNow.Year, utcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc)).ToUnixTimeSeconds();
@@ -349,7 +372,9 @@ public sealed class OpenAIProviderClient : ProviderClientBase
             return null;
         }
 
-        Dictionary<string, (double Input, double Output)> totals = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, OpenAiModelUsageTotals> totals = new(StringComparer.OrdinalIgnoreCase);
+        double totalInputTokens = 0;
+        double totalCachedInputTokens = 0;
         foreach (JsonElement bucket in buckets.EnumerateArray())
         {
             if (!bucket.TryGetProperty("results", out JsonElement results) || results.ValueKind != JsonValueKind.Array)
@@ -362,20 +387,39 @@ public sealed class OpenAIProviderClient : ProviderClientBase
                 string model = GetString(result, "model") ?? "gpt-4o";
                 double input = GetDouble(result, "input_tokens") ?? 0;
                 double output = GetDouble(result, "output_tokens") ?? 0;
-                totals.TryGetValue(model, out (double Input, double Output) current);
-                totals[model] = (current.Input + input, current.Output + output);
+                double cachedInput = GetCachedInputTokens(result);
+                OpenAiModelUsageTotals current = totals.TryGetValue(model, out OpenAiModelUsageTotals existing)
+                    ? existing
+                    : default;
+                totals[model] = new OpenAiModelUsageTotals(
+                    current.Input + input,
+                    current.CachedInput + cachedInput,
+                    current.Output + output);
+                totalInputTokens += input;
+                totalCachedInputTokens += cachedInput;
             }
         }
 
         double totalCost = 0;
-        foreach ((string model, (double Input, double Output) tokens) in totals)
+        foreach ((string model, OpenAiModelUsageTotals tokens) in totals)
         {
-            (double inputPrice, double outputPrice) = ResolvePricing(model);
-            totalCost += (tokens.Input / 1_000_000d) * inputPrice;
-            totalCost += (tokens.Output / 1_000_000d) * outputPrice;
+            OpenAiPricing pricing = ResolvePricing(model);
+            double uncachedInputTokens = Math.Max(0, tokens.Input - tokens.CachedInput);
+            totalCost += (uncachedInputTokens / 1_000_000d) * pricing.Input;
+            totalCost += (tokens.CachedInput / 1_000_000d) * (pricing.CachedInput ?? pricing.Input);
+            totalCost += (tokens.Output / 1_000_000d) * pricing.Output;
         }
 
-        return totalCost;
+        double totalPromptTokens = totalInputTokens + totalCachedInputTokens;
+        double? cacheHitRate = totalPromptTokens <= 0 ? null : (totalCachedInputTokens / totalPromptTokens) * 100d;
+        return new OpenAiOrgUsageSummary
+        {
+            EstimatedCostUsd = totalCost,
+            InputTokens = totalInputTokens,
+            CachedInputTokens = totalCachedInputTokens,
+            OutputTokens = totals.Values.Sum(value => value.Output),
+            CacheHitRatePercent = cacheHitRate
+        };
     }
 
     private static string? PickBestModel(JsonElement root)
@@ -423,9 +467,38 @@ public sealed class OpenAIProviderClient : ProviderClientBase
         return id;
     }
 
-    private static (double Input, double Output) ResolvePricing(string model)
+    private static double GetCachedInputTokens(JsonElement result)
     {
-        foreach ((string key, (double Input, double Output) pricing) in Pricing)
+        double? direct = GetDouble(result, "input_cached_tokens") ?? GetDouble(result, "cached_input_tokens");
+        if (direct is not null)
+        {
+            return direct.Value;
+        }
+
+        if (result.TryGetProperty("input_tokens_details", out JsonElement inputDetails) && inputDetails.ValueKind == JsonValueKind.Object)
+        {
+            double? cached = GetDouble(inputDetails, "cached_tokens");
+            if (cached is not null)
+            {
+                return cached.Value;
+            }
+        }
+
+        if (result.TryGetProperty("prompt_tokens_details", out JsonElement promptDetails) && promptDetails.ValueKind == JsonValueKind.Object)
+        {
+            double? cached = GetDouble(promptDetails, "cached_tokens");
+            if (cached is not null)
+            {
+                return cached.Value;
+            }
+        }
+
+        return 0;
+    }
+
+    private static OpenAiPricing ResolvePricing(string model)
+    {
+        foreach ((string key, OpenAiPricing pricing) in Pricing)
         {
             if (model.StartsWith(key, StringComparison.OrdinalIgnoreCase))
             {
@@ -434,6 +507,25 @@ public sealed class OpenAIProviderClient : ProviderClientBase
         }
 
         return Pricing["gpt-4o"];
+    }
+
+    private static ProviderDetailMetric? CreateCacheMetric(OpenAiOrgUsageSummary? summary)
+    {
+        if (summary?.CachedInputTokens is null || summary.CachedInputTokens <= 0)
+        {
+            return null;
+        }
+
+        double hitRate = Math.Clamp(summary.CacheHitRatePercent ?? 0, 0, 100);
+        return new ProviderDetailMetric
+        {
+            Title = "Input cache hit",
+            Percent = hitRate,
+            PercentLabelOverride = $"{hitRate:0}% cached",
+            Summary = $"{FormatCompact(summary.CachedInputTokens)} cached",
+            RightLabel = $"{FormatCompact(summary.InputTokens)} uncached",
+            Footer = "Monthly OpenAI org aggregate from cached input tokens."
+        };
     }
 
     private static string? DescribeReset(DateTimeOffset? resetAt)
@@ -464,6 +556,21 @@ public sealed class OpenAIProviderClient : ProviderClientBase
 
     private static string FormatUsd(double value) => $"${value:N2}";
 
+    private static string FormatCompact(double value)
+    {
+        if (value >= 1_000_000)
+        {
+            return $"{value / 1_000_000:0.0}M";
+        }
+
+        if (value >= 1_000)
+        {
+            return $"{value / 1_000:0.#}K";
+        }
+
+        return value.ToString("N0");
+    }
+
     private static ProviderDetailMetric CreateWindowMetric(string title, double percent, DateTimeOffset? resetAt, string footer)
     {
         return new ProviderDetailMetric
@@ -481,6 +588,19 @@ public sealed class OpenAIProviderClient : ProviderClientBase
         public required string AccessToken { get; init; }
         public string? AccountId { get; init; }
     }
+
+    private sealed class OpenAiOrgUsageSummary
+    {
+        public required double EstimatedCostUsd { get; init; }
+        public required double InputTokens { get; init; }
+        public required double CachedInputTokens { get; init; }
+        public required double OutputTokens { get; init; }
+        public double? CacheHitRatePercent { get; init; }
+    }
+
+    private readonly record struct OpenAiModelUsageTotals(double Input, double CachedInput, double Output);
+
+    private readonly record struct OpenAiPricing(double Input, double? CachedInput, double Output);
 
     private sealed class CodexWindowSnapshot
     {
