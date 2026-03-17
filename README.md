@@ -1,6 +1,6 @@
 # TokenLUV
 
-![TokenLUV icon](native/TokenLuv.WinUI/Assets/Square150x150Logo.scale-200.png)
+![TokenLUV](native/TokenLuv.WinUI/Assets/TokenLUV♥.png)
 
 Native WinUI 3 desktop app for Windows that monitors live AI token and credit usage from the system tray.
 
