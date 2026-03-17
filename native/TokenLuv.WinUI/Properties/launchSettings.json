@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "TokenLuv (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "TokenLuv (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

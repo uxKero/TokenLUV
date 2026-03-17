@@ -1,12 +1,17 @@
 node_modules/
 dist/
+artifacts/
+TokenLUV/
 dist-electron/
 dist-release/
 out/
 .vscode/
+.vs/
 *.log
 .env
 .env.local
+*.user
+*.suo
 
 # electron-store (datos de usuario — no van al repo)
 *.json.bak
@@ -18,3 +23,8 @@ builder-effective-config.yaml
 # OS
 .DS_Store
 Thumbs.db
+
+# WinUI / .NET build outputs
+native/**/bin/
+native/**/obj/
+AppPackages/

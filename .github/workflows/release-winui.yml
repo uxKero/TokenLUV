@@ -1,0 +1,86 @@
+name: Release WinUI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label to embed in the zip filename
+        required: true
+        default: dev
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      WINDOWS_SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+      WINDOWS_SIGNING_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Publish TokenLUV
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = "${{ github.ref_name }}"
+          }
+          ./publish-release.ps1 -Version $version
+
+      - name: Decode signing certificate
+        if: env.WINDOWS_SIGNING_PFX_BASE64 != '' && env.WINDOWS_SIGNING_PFX_PASSWORD != ''
+        shell: pwsh
+        run: |
+          $bytes = [Convert]::FromBase64String($env:WINDOWS_SIGNING_PFX_BASE64)
+          [IO.File]::WriteAllBytes("$pwd\\tokenluv-signing.pfx", $bytes)
+
+      - name: Package signed MSIX
+        if: env.WINDOWS_SIGNING_PFX_BASE64 != '' && env.WINDOWS_SIGNING_PFX_PASSWORD != ''
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = "${{ github.ref_name }}"
+          }
+          ./publish-msix.ps1 -Version $version -PfxPath "$pwd\\tokenluv-signing.pfx" -PfxPassword $env:WINDOWS_SIGNING_PFX_PASSWORD
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tokenluv-win-x64
+          path: dist/*.zip
+
+      - name: Upload MSIX artifact
+        if: env.WINDOWS_SIGNING_PFX_BASE64 != '' && env.WINDOWS_SIGNING_PFX_PASSWORD != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: tokenluv-msix
+          path: |
+            dist/msix/**/*.msix
+            dist/msix/**/*.cer
+
+      - name: Publish GitHub Release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+
+      - name: Publish GitHub Release MSIX asset
+        if: startsWith(github.ref, 'refs/tags/') && env.WINDOWS_SIGNING_PFX_BASE64 != '' && env.WINDOWS_SIGNING_PFX_PASSWORD != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/msix/**/*.msix
+            dist/msix/**/*.cer

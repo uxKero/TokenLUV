@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="TokenLuv.WinUI.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:model="using:TokenLuv.WinUI.Models"
+    mc:Ignorable="d"
+    Title="TokenLUV Settings">
+
+    <Grid Background="{StaticResource SurfaceBrush}">
+        <Border Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrushStrong}"
+                BorderThickness="1"
+                CornerRadius="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="38" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="56" />
+                </Grid.RowDefinitions>
+
+                <Grid x:Name="HeaderBar"
+                      Grid.Row="0"
+                      Background="{StaticResource PanelBrush}"
+                      BorderBrush="{StaticResource BorderBrushStrong}"
+                      BorderThickness="0,0,0,1"
+                      Padding="12,0,8,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Spacing="4">
+                        <Image Width="12"
+                               Height="12"
+                               VerticalAlignment="Center"
+                               Margin="0,0,2,0">
+                            <Image.Source>
+                                <BitmapImage UriSource="ms-appx:///Assets/icon.ico" />
+                            </Image.Source>
+                        </Image>
+                        <TextBlock Text="TokenLUV"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TerminalCyanBrush}" />
+                        <TextBlock Text="&#x2665;"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TerminalRedBrush}" />
+                        <TextBlock Text="· settings"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="11"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Style="{StaticResource CompactIconButtonStyle}"
+                            Click="CloseButton_Click">
+                        <TextBlock Text="&#x2715;"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="12"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                    </Button>
+                </Grid>
+
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel Padding="14"
+                                Spacing="12">
+                        <Border Style="{StaticResource SectionCardStyle}">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="App behavior"
+                                           FontFamily="Cascadia Mono"
+                                           FontSize="12"
+                                           Foreground="{StaticResource StrongTextBrush}" />
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Refresh interval"
+                                                   FontFamily="Cascadia Mono"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource MutedTextBrush}" />
+                                        <ComboBox ItemsSource="{x:Bind RefreshOptions}"
+                                                  SelectedItem="{x:Bind SelectedRefreshInterval, Mode=TwoWay}"
+                                                  Width="160"
+                                                  HorizontalAlignment="Left">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}"
+                                                               FontFamily="Cascadia Mono" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1"
+                                                Spacing="10">
+                                        <CheckBox IsChecked="{x:Bind SoundAlertsEnabled, Mode=TwoWay}"
+                                                  Content="Play warning bips only when a provider crosses a limit threshold"
+                                                  FontFamily="Cascadia Mono" />
+                                        <TextBlock Text="Secrets stay in PasswordVault. TokenLUV will not use local CLI or browser auth unless you explicitly enable it for a provider."
+                                                   TextWrapping="Wrap"
+                                                   FontFamily="Cascadia Mono"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource MutedTextBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <ItemsControl ItemsSource="{x:Bind Providers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="model:ProviderSettingsEditorItem">
+                                    <Border Style="{StaticResource SectionCardStyle}"
+                                            Margin="0,0,0,12">
+                                        <StackPanel Spacing="10">
+                                            <Grid ColumnSpacing="10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Text="{x:Bind DisplayName}"
+                                                           FontFamily="Cascadia Mono"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource StrongTextBrush}" />
+
+                                                <CheckBox Grid.Column="1"
+                                                          Visibility="{x:Bind ConnectedAuthVisibility}"
+                                                          IsChecked="{x:Bind UseConnectedAuth, Mode=TwoWay}"
+                                                          Content="{x:Bind ConnectedAuthLabel}"
+                                                          FontFamily="Cascadia Mono"
+                                                          FontSize="10" />
+                                            </Grid>
+
+                                            <TextBlock Text="{x:Bind Note}"
+                                                       TextWrapping="Wrap"
+                                                       FontFamily="Cascadia Mono"
+                                                       FontSize="10"
+                                                       Foreground="{StaticResource MutedTextBrush}" />
+
+                                            <StackPanel Orientation="Horizontal"
+                                                        Spacing="8">
+                                                <Button Visibility="{x:Bind AuthButtonVisibility}"
+                                                        Click="ProviderAuthButton_Click"
+                                                        Tag="{x:Bind}">
+                                                    <TextBlock Text="{x:Bind AuthButtonLabel}"
+                                                               FontFamily="Cascadia Mono" />
+                                                </Button>
+                                                <Button Visibility="{x:Bind OpenButtonVisibility}"
+                                                        Click="ProviderOpenButton_Click"
+                                                        Tag="{x:Bind}">
+                                                    <TextBlock Text="{x:Bind OpenButtonLabel}"
+                                                               FontFamily="Cascadia Mono" />
+                                                </Button>
+                                            </StackPanel>
+
+                                            <TextBox Header="{x:Bind ApiKeyLabel}"
+                                                     Text="{x:Bind ApiKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                     PlaceholderText="{x:Bind ApiKeyPlaceholder}"
+                                                     FontFamily="Cascadia Mono" />
+
+                                            <StackPanel Visibility="{x:Bind ProvisioningVisibility}"
+                                                        Spacing="6">
+                                                <TextBlock Text="{x:Bind ProvisioningKeyLabel}"
+                                                           FontFamily="Cascadia Mono"
+                                                           FontSize="10"
+                                                           Foreground="{StaticResource StrongTextBrush}" />
+                                                <TextBox Text="{x:Bind ProvisioningKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                         PlaceholderText="{x:Bind ProvisioningKeyPlaceholder}"
+                                                         FontFamily="Cascadia Mono" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid Grid.Row="2"
+                      Background="{StaticResource PanelBrush}"
+                      BorderBrush="{StaticResource BorderBrushStrong}"
+                      BorderThickness="0,1,0,0"
+                      Padding="14,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{x:Bind StatusMessage, Mode=OneWay}"
+                               VerticalAlignment="Center"
+                               FontFamily="Cascadia Mono"
+                               FontSize="10"
+                               Foreground="{StaticResource MutedTextBrush}" />
+
+                    <Button Grid.Column="1"
+                            Margin="0,0,8,0"
+                            Click="CloseButton_Click">
+                        <TextBlock Text="cancel" FontFamily="Cascadia Mono" />
+                    </Button>
+
+                    <Button Grid.Column="2"
+                            Click="SaveButton_Click">
+                        <TextBlock Text="save" FontFamily="Cascadia Mono" />
+                    </Button>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

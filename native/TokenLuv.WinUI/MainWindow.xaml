@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="TokenLuv.WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:model="using:TokenLuv.WinUI.Models"
+    mc:Ignorable="d"
+    Title="TokenLUV">
+
+    <Grid Background="{StaticResource SurfaceBrush}">
+        <Border Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrushStrong}"
+                BorderThickness="1"
+                CornerRadius="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="36" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="30" />
+                </Grid.RowDefinitions>
+
+                <Grid x:Name="HeaderBar"
+                      Grid.Row="0"
+                      Background="{StaticResource PanelBrush}"
+                      BorderBrush="{StaticResource BorderBrushStrong}"
+                      BorderThickness="0,0,0,1"
+                      Padding="12,0,8,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Spacing="4">
+                        <Image Width="12"
+                               Height="12"
+                               VerticalAlignment="Center"
+                               Margin="0,0,2,0">
+                            <Image.Source>
+                                <BitmapImage UriSource="ms-appx:///Assets/icon.ico" />
+                            </Image.Source>
+                        </Image>
+                        <TextBlock Text="&#x250C;&#x2500;"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="11"
+                                   Foreground="#334155" />
+                        <TextBlock Text="TokenLUV"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TerminalCyanBrush}" />
+                        <TextBlock Text="&#x2665;"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TerminalRedBrush}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Spacing="6">
+                        <Button Style="{StaticResource CompactIconButtonStyle}"
+                                Click="RefreshButton_Click"
+                                ToolTipService.ToolTip="Actualizar ahora">
+                            <TextBlock Text="&#x27F3;"
+                                       FontFamily="Cascadia Mono"
+                                       FontSize="12"
+                                       Foreground="{StaticResource AccentBrush}" />
+                        </Button>
+                        <Button Style="{StaticResource CompactIconButtonStyle}"
+                                Click="SettingsButton_Click"
+                                ToolTipService.ToolTip="Configuracion">
+                            <TextBlock Text="&#x2699;"
+                                       FontFamily="Cascadia Mono"
+                                       FontSize="12"
+                                       Foreground="{StaticResource MutedTextBrush}" />
+                        </Button>
+                        <Button Style="{StaticResource CompactIconButtonStyle}"
+                                Click="HideButton_Click"
+                                ToolTipService.ToolTip="Ocultar a bandeja">
+                            <TextBlock Text="&#x2715;"
+                                       FontFamily="Cascadia Mono"
+                                       FontSize="12"
+                                       Foreground="#334155" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Padding="8,8,8,8"
+                                Spacing="6">
+                        <StackPanel Visibility="{x:Bind ViewModel.DetailVisibility, Mode=OneWay}"
+                                    Spacing="8">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Style="{StaticResource TabScrollButtonStyle}"
+                                        Click="ScrollTabsLeft_Click"
+                                        ToolTipService.ToolTip="Providers anteriores">
+                                    <TextBlock Text="&lt;"
+                                               FontFamily="Cascadia Mono"
+                                               FontSize="10" />
+                                </Button>
+
+                                <ScrollViewer x:Name="ProvidersTabScrollViewer"
+                                              Grid.Column="1"
+                                              HorizontalScrollMode="Enabled"
+                                              HorizontalScrollBarVisibility="Hidden"
+                                              VerticalScrollMode="Disabled"
+                                              VerticalScrollBarVisibility="Disabled"
+                                              ZoomMode="Disabled">
+                                    <ItemsControl ItemsSource="{x:Bind ViewModel.Providers, Mode=OneWay}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="8" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="model:ProviderSnapshot">
+                                            <Button Click="ProviderRow_Click"
+                                                        Style="{StaticResource ProviderTabButtonStyle}"
+                                                        Tag="{x:Bind ProviderId}"
+                                                        Margin="0,0,8,0"
+                                                        ToolTipService.ToolTip="{x:Bind DisplayName}"
+                                                        Background="{x:Bind TabBackgroundBrush, Mode=OneWay}"
+                                                        BorderBrush="{x:Bind TabBorderBrush, Mode=OneWay}">
+                                                    <StackPanel Spacing="4">
+                                                        <Image Width="18"
+                                                               Height="18"
+                                                               HorizontalAlignment="Center"
+                                                               Source="{x:Bind LogoSource, Mode=OneWay}" />
+                                                        <Rectangle Width="18"
+                                                                   Height="2"
+                                                                   RadiusX="1"
+                                                                   RadiusY="1"
+                                                                   HorizontalAlignment="Center"
+                                                                   Fill="{x:Bind BarFillBrush, Mode=OneWay}" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+
+                                <Button Grid.Column="2"
+                                        Style="{StaticResource TabScrollButtonStyle}"
+                                        Click="ScrollTabsRight_Click"
+                                        ToolTipService.ToolTip="Providers siguientes">
+                                    <TextBlock Text="&gt;"
+                                               FontFamily="Cascadia Mono"
+                                               FontSize="10" />
+                                </Button>
+                            </Grid>
+
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Spacing="1">
+                                    <TextBlock Text="{x:Bind ViewModel.SelectedProviderName, Mode=OneWay}"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource StrongTextBrush}" />
+                                    <TextBlock Text="{x:Bind ViewModel.SelectedProviderUpdatedLabel, Mode=OneWay}"
+                                               FontFamily="Cascadia Mono"
+                                               FontSize="9"
+                                               Foreground="{StaticResource MutedTextBrush}" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="1"
+                                           VerticalAlignment="Center"
+                                           Text="{x:Bind ViewModel.SelectedProviderModeLabel, Mode=OneWay}"
+                                           FontFamily="Cascadia Mono"
+                                           FontSize="9"
+                                           Foreground="{StaticResource MutedTextBrush}" />
+                            </Grid>
+
+                            <Rectangle Height="1" Fill="{StaticResource BorderBrushStrong}" />
+
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.SelectedProviderDetailMetrics, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="model:ProviderDetailMetric">
+                                        <StackPanel Spacing="4"
+                                                    Margin="0,0,0,4">
+                                            <TextBlock Text="{x:Bind Title}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource StrongTextBrush}" />
+                                            <TextBlock Text="{x:Bind AsciiBarText}"
+                                                       FontFamily="Cascadia Mono"
+                                                       FontSize="9"
+                                                       Foreground="{x:Bind MeterBrush}" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Text="{x:Bind PercentLabel}"
+                                                           FontFamily="Cascadia Mono"
+                                                           FontSize="9"
+                                                           Foreground="{StaticResource StrongTextBrush}" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{x:Bind RightLabel}"
+                                                           FontFamily="Cascadia Mono"
+                                                           FontSize="9"
+                                                           Foreground="{StaticResource MutedTextBrush}" />
+                                            </Grid>
+                                            <TextBlock Text="{x:Bind Footer}"
+                                                       FontFamily="Cascadia Mono"
+                                                       FontSize="9"
+                                                       Foreground="{StaticResource MutedTextBrush}"
+                                                       TextWrapping="WrapWholeWords" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Rectangle Height="1" Fill="{StaticResource BorderBrushStrong}" />
+
+                            <TextBlock Text="{x:Bind ViewModel.SelectedProviderFootnote, Mode=OneWay}"
+                                       FontFamily="Cascadia Mono"
+                                       FontSize="9"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       Margin="0,0,0,1"
+                                       TextWrapping="WrapWholeWords" />
+
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="10">
+                                <Button Click="OpenUsageButton_Click"
+                                        Tag="{x:Bind ViewModel.SelectedProvider, Mode=OneWay}"
+                                        Style="{StaticResource ActionLinkButtonStyle}">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="4">
+                                        <TextBlock Text=">"
+                                                   FontFamily="Cascadia Mono"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource AccentBrush}" />
+                                        <TextBlock Text="dashboard"
+                                                   FontFamily="Cascadia Mono"
+                                                   FontSize="9"
+                                                   Foreground="{StaticResource AccentBrush}" />
+                                    </StackPanel>
+                                </Button>
+
+                                <TextBlock Text="|"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Cascadia Mono"
+                                           FontSize="10"
+                                           Foreground="{StaticResource MutedTextBrush}" />
+
+                                <Button Click="OpenStatusButton_Click"
+                                        Tag="{x:Bind ViewModel.SelectedProvider, Mode=OneWay}"
+                                        Style="{StaticResource ActionLinkButtonStyle}">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="4">
+                                        <TextBlock Text="~"
+                                                   FontFamily="Cascadia Mono"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource AccentBrush}" />
+                                        <TextBlock Text="status"
+                                                   FontFamily="Cascadia Mono"
+                                                   FontSize="9"
+                                                   Foreground="{StaticResource AccentBrush}" />
+                                    </StackPanel>
+                                </Button>
+
+                                <TextBlock Text="|"
+                                           VerticalAlignment="Center"
+                                           FontFamily="Cascadia Mono"
+                                           FontSize="10"
+                                           Foreground="{StaticResource MutedTextBrush}" />
+
+                                <Button Click="SettingsButton_Click"
+                                        Style="{StaticResource ActionLinkButtonStyle}">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="4">
+                                        <TextBlock Text="#"
+                                                   FontFamily="Cascadia Mono"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource AccentBrush}" />
+                                        <TextBlock Text="settings"
+                                                   FontFamily="Cascadia Mono"
+                                                   FontSize="9"
+                                                   Foreground="{StaticResource AccentBrush}" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid Grid.Row="2"
+                      BorderBrush="#1E1E2E"
+                      BorderThickness="0,1,0,0"
+                      Padding="10,0,10,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock VerticalAlignment="Center"
+                               Text="{x:Bind ViewModel.LastUpdatedLabel, Mode=OneWay}"
+                               FontFamily="Cascadia Mono"
+                               FontSize="9"
+                               Foreground="#334155" />
+
+                    <Button Grid.Column="1"
+                            Style="{StaticResource CompactIconButtonStyle}"
+                            Click="RefreshButton_Click">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="4">
+                            <TextBlock Text="&#x27F3;"
+                                       FontFamily="Cascadia Mono"
+                                       FontSize="10"
+                                       Foreground="{StaticResource AccentBrush}" />
+                            <TextBlock Text="refresh"
+                                       FontFamily="Cascadia Mono"
+                                       FontSize="9"
+                                       Foreground="{StaticResource AccentBrush}" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
