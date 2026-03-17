@@ -103,7 +103,7 @@ public sealed partial class MainWindow : Window
         WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
         _appWindow.Title = "TokenLUV";
-        _appWindow.Resize(new Windows.Graphics.SizeInt32(500, 500));
+        _appWindow.Resize(new Windows.Graphics.SizeInt32(460, 470));
         _appWindow.Closing += AppWindow_Closing;
 
         if (_appWindow.Presenter is OverlappedPresenter presenter)
@@ -267,10 +267,11 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        int targetHeight = 500;
-        if (_appWindow.Size.Height != targetHeight)
+        int targetWidth = 460;
+        int targetHeight = 470;
+        if (_appWindow.Size.Width != targetWidth || _appWindow.Size.Height != targetHeight)
         {
-            _appWindow.Resize(new Windows.Graphics.SizeInt32(500, targetHeight));
+            _appWindow.Resize(new Windows.Graphics.SizeInt32(targetWidth, targetHeight));
         }
     }
 

@@ -26,7 +26,7 @@
                       Background="{StaticResource PanelBrush}"
                       BorderBrush="{StaticResource BorderBrushStrong}"
                       BorderThickness="0,0,0,1"
-                      Padding="12,0,8,0">
+                      Padding="10,0,8,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -92,10 +92,10 @@
                 <ScrollViewer Grid.Row="1"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Padding="8,6,8,4"
-                                Spacing="4">
+                    <StackPanel Padding="7,5,7,4"
+                                Spacing="3">
                         <StackPanel Visibility="{x:Bind ViewModel.DetailVisibility, Mode=OneWay}"
-                                    Spacing="5">
+                                    Spacing="4">
                             <ScrollViewer x:Name="ProvidersTabScrollViewer"
                                           HorizontalScrollMode="Enabled"
                                           HorizontalScrollBarVisibility="Hidden"
@@ -105,7 +105,7 @@
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.Providers, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="6" />
+                                                <StackPanel Orientation="Horizontal" Spacing="5" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -134,7 +134,7 @@
                                     </ItemsControl>
                             </ScrollViewer>
 
-                            <Grid ColumnSpacing="8">
+                            <Grid ColumnSpacing="6">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -142,7 +142,7 @@
 
                                 <StackPanel Spacing="1">
                                     <TextBlock Text="{x:Bind ViewModel.SelectedProviderName, Mode=OneWay}"
-                                               FontSize="15"
+                                               FontSize="14"
                                                FontWeight="SemiBold"
                                                Foreground="{StaticResource StrongTextBrush}" />
                                     <TextBlock Text="{x:Bind ViewModel.SelectedProviderUpdatedLabel, Mode=OneWay}"
@@ -164,10 +164,10 @@
                             <ItemsControl ItemsSource="{x:Bind ViewModel.SelectedProviderDetailMetrics, Mode=OneWay}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="model:ProviderDetailMetric">
-                                        <StackPanel Spacing="3"
-                                                    Margin="0,0,0,3">
+                                        <StackPanel Spacing="2"
+                                                    Margin="0,0,0,2">
                                     <TextBlock Text="{x:Bind Title}"
-                                                           FontSize="10.5"
+                                                           FontSize="10"
                                                            FontWeight="SemiBold"
                                                            Foreground="{StaticResource StrongTextBrush}" />
                                             <TextBlock Text="{x:Bind AsciiBarText}"
@@ -210,7 +210,7 @@
                                        TextWrapping="WrapWholeWords" />
 
                             <StackPanel Orientation="Horizontal"
-                                        Spacing="6">
+                                        Spacing="4">
                                 <Button Click="OpenUsageButton_Click"
                                         Tag="{x:Bind ViewModel.SelectedProvider, Mode=OneWay}"
                                         Style="{StaticResource ActionLinkButtonStyle}">
@@ -277,7 +277,7 @@
                 <Grid Grid.Row="2"
                       BorderBrush="#1E1E2E"
                       BorderThickness="0,1,0,0"
-                      Padding="10,0,10,0">
+                      Padding="8,0,8,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
