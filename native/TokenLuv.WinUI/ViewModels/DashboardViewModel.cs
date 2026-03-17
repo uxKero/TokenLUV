@@ -13,6 +13,7 @@ public sealed class DashboardViewModel : INotifyPropertyChanged
     private bool _isRefreshing;
     private DateTimeOffset _lastUpdated = DateTimeOffset.Now;
     private string? _selectedProviderId;
+    private AppUpdateInfo? _updateInfo;
 
     public DashboardViewModel(ProviderMonitorService monitorService)
     {
@@ -103,6 +104,11 @@ public sealed class DashboardViewModel : INotifyPropertyChanged
                 }
             }
 
+            if (HasUpdateAvailable)
+            {
+                lines.Add(ClampLine($"Update available: v{LatestVersionLabel}", 58));
+            }
+
             lines.Add(LastUpdatedRelativeLabel);
             return ClampTooltip(lines, 127);
         }
@@ -151,6 +157,12 @@ public sealed class DashboardViewModel : INotifyPropertyChanged
     public string SelectedProviderModeLabel => SelectedProvider?.DetailModeLabel ?? string.Empty;
     public string SelectedProviderFootnote => SelectedProvider?.Footnote ?? string.Empty;
     public IReadOnlyList<ProviderDetailMetric> SelectedProviderDetailMetrics => SelectedProvider?.DetailMetrics ?? Array.Empty<ProviderDetailMetric>();
+    public bool HasUpdateAvailable => _updateInfo is not null;
+    public Visibility UpdateVisibility => HasUpdateAvailable ? Visibility.Visible : Visibility.Collapsed;
+    public string LatestVersionLabel => _updateInfo?.LatestVersion ?? string.Empty;
+    public string UpdateButtonText => HasUpdateAvailable ? $"update v{LatestVersionLabel}" : string.Empty;
+    public string UpdateTooltipText => HasUpdateAvailable ? $"Download TokenLUV v{LatestVersionLabel}" : string.Empty;
+    public string? UpdateUrl => _updateInfo?.ReleaseUrl;
 
     public Visibility DetailVisibility => SelectedProvider is null ? Visibility.Collapsed : Visibility.Visible;
 
@@ -160,6 +172,18 @@ public sealed class DashboardViewModel : INotifyPropertyChanged
     {
         _selectedProviderId = providerId;
         ApplySelection();
+    }
+
+    public void SetUpdateInfo(AppUpdateInfo? updateInfo)
+    {
+        _updateInfo = updateInfo;
+        OnPropertyChanged(nameof(HasUpdateAvailable));
+        OnPropertyChanged(nameof(UpdateVisibility));
+        OnPropertyChanged(nameof(LatestVersionLabel));
+        OnPropertyChanged(nameof(UpdateButtonText));
+        OnPropertyChanged(nameof(UpdateTooltipText));
+        OnPropertyChanged(nameof(UpdateUrl));
+        OnPropertyChanged(nameof(TrayTooltip));
     }
 
     private void ReplaceProviders(IEnumerable<ProviderSnapshot> providers)
@@ -195,7 +219,7 @@ public sealed class DashboardViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SelectedProviderDetailMetrics));
         OnPropertyChanged(nameof(DetailVisibility));
         OnPropertyChanged(nameof(IsExpanded));
-        OnPropertyChanged(nameof(TrayTooltip));
+        OnPropertyChanged(nameof(UpdateVisibility));
     }
 
     private void ApplySelection()
@@ -215,6 +239,7 @@ public sealed class DashboardViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SelectedProviderDetailMetrics));
         OnPropertyChanged(nameof(DetailVisibility));
         OnPropertyChanged(nameof(IsExpanded));
+        OnPropertyChanged(nameof(TrayTooltip));
     }
 
     private void EnsureSelectedProvider()

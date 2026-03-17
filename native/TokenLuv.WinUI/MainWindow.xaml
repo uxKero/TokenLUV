@@ -16,9 +16,9 @@
                 CornerRadius="12">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="36" />
+                    <RowDefinition Height="34" />
                     <RowDefinition Height="*" />
-                    <RowDefinition Height="30" />
+                    <RowDefinition Height="24" />
                 </Grid.RowDefinitions>
 
                 <Grid x:Name="HeaderBar"
@@ -92,36 +92,20 @@
                 <ScrollViewer Grid.Row="1"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Padding="8,8,8,8"
-                                Spacing="6">
+                    <StackPanel Padding="8,6,8,4"
+                                Spacing="4">
                         <StackPanel Visibility="{x:Bind ViewModel.DetailVisibility, Mode=OneWay}"
-                                    Spacing="8">
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <Button Style="{StaticResource TabScrollButtonStyle}"
-                                        Click="ScrollTabsLeft_Click"
-                                        ToolTipService.ToolTip="Providers anteriores">
-                                    <TextBlock Text="&lt;"
-                                               FontFamily="Cascadia Mono"
-                                               FontSize="10" />
-                                </Button>
-
-                                <ScrollViewer x:Name="ProvidersTabScrollViewer"
-                                              Grid.Column="1"
-                                              HorizontalScrollMode="Enabled"
-                                              HorizontalScrollBarVisibility="Hidden"
-                                              VerticalScrollMode="Disabled"
-                                              VerticalScrollBarVisibility="Disabled"
-                                              ZoomMode="Disabled">
+                                    Spacing="5">
+                            <ScrollViewer x:Name="ProvidersTabScrollViewer"
+                                          HorizontalScrollMode="Enabled"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollMode="Disabled"
+                                          VerticalScrollBarVisibility="Disabled"
+                                          ZoomMode="Disabled">
                                     <ItemsControl ItemsSource="{x:Bind ViewModel.Providers, Mode=OneWay}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="8" />
+                                                <StackPanel Orientation="Horizontal" Spacing="6" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -129,7 +113,6 @@
                                             <Button Click="ProviderRow_Click"
                                                         Style="{StaticResource ProviderTabButtonStyle}"
                                                         Tag="{x:Bind ProviderId}"
-                                                        Margin="0,0,8,0"
                                                         ToolTipService.ToolTip="{x:Bind DisplayName}"
                                                         Background="{x:Bind TabBackgroundBrush, Mode=OneWay}"
                                                         BorderBrush="{x:Bind TabBorderBrush, Mode=OneWay}">
@@ -149,17 +132,7 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                </ScrollViewer>
-
-                                <Button Grid.Column="2"
-                                        Style="{StaticResource TabScrollButtonStyle}"
-                                        Click="ScrollTabsRight_Click"
-                                        ToolTipService.ToolTip="Providers siguientes">
-                                    <TextBlock Text="&gt;"
-                                               FontFamily="Cascadia Mono"
-                                               FontSize="10" />
-                                </Button>
-                            </Grid>
+                            </ScrollViewer>
 
                             <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
@@ -191,10 +164,10 @@
                             <ItemsControl ItemsSource="{x:Bind ViewModel.SelectedProviderDetailMetrics, Mode=OneWay}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="model:ProviderDetailMetric">
-                                        <StackPanel Spacing="4"
-                                                    Margin="0,0,0,4">
-                                            <TextBlock Text="{x:Bind Title}"
-                                                           FontSize="11"
+                                        <StackPanel Spacing="3"
+                                                    Margin="0,0,0,3">
+                                    <TextBlock Text="{x:Bind Title}"
+                                                           FontSize="10.5"
                                                            FontWeight="SemiBold"
                                                            Foreground="{StaticResource StrongTextBrush}" />
                                             <TextBlock Text="{x:Bind AsciiBarText}"
@@ -219,7 +192,7 @@
                                             </Grid>
                                             <TextBlock Text="{x:Bind Footer}"
                                                        FontFamily="Cascadia Mono"
-                                                       FontSize="9"
+                                                       FontSize="8.5"
                                                        Foreground="{StaticResource MutedTextBrush}"
                                                        TextWrapping="WrapWholeWords" />
                                         </StackPanel>
@@ -231,13 +204,13 @@
 
                             <TextBlock Text="{x:Bind ViewModel.SelectedProviderFootnote, Mode=OneWay}"
                                        FontFamily="Cascadia Mono"
-                                       FontSize="9"
+                                       FontSize="8.5"
                                        Foreground="{StaticResource MutedTextBrush}"
-                                       Margin="0,0,0,1"
+                                       Margin="0,-1,0,0"
                                        TextWrapping="WrapWholeWords" />
 
                             <StackPanel Orientation="Horizontal"
-                                        Spacing="10">
+                                        Spacing="6">
                                 <Button Click="OpenUsageButton_Click"
                                         Tag="{x:Bind ViewModel.SelectedProvider, Mode=OneWay}"
                                         Style="{StaticResource ActionLinkButtonStyle}">
@@ -317,18 +290,20 @@
                                Foreground="#334155" />
 
                     <Button Grid.Column="1"
-                            Style="{StaticResource CompactIconButtonStyle}"
-                            Click="RefreshButton_Click">
+                            Visibility="{x:Bind ViewModel.UpdateVisibility, Mode=OneWay}"
+                            Style="{StaticResource ActionLinkButtonStyle}"
+                            Click="OpenUpdateButton_Click"
+                            ToolTipService.ToolTip="{x:Bind ViewModel.UpdateTooltipText, Mode=OneWay}">
                         <StackPanel Orientation="Horizontal"
                                     Spacing="4">
-                            <TextBlock Text="&#x27F3;"
+                            <TextBlock Text="^"
                                        FontFamily="Cascadia Mono"
                                        FontSize="10"
-                                       Foreground="{StaticResource AccentBrush}" />
-                            <TextBlock Text="refresh"
+                                       Foreground="{StaticResource TerminalRedBrush}" />
+                            <TextBlock Text="{x:Bind ViewModel.UpdateButtonText, Mode=OneWay}"
                                        FontFamily="Cascadia Mono"
                                        FontSize="9"
-                                       Foreground="{StaticResource AccentBrush}" />
+                                       Foreground="{StaticResource TerminalRedBrush}" />
                         </StackPanel>
                     </Button>
                 </Grid>

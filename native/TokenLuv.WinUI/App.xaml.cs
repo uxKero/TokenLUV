@@ -4,6 +4,7 @@ using TokenLuv.WinUI.Services;
 using TokenLuv.WinUI.Services.Providers;
 using TokenLuv.WinUI.Services.Security;
 using TokenLuv.WinUI.Services.Settings;
+using TokenLuv.WinUI.Services.Updates;
 using TokenLuv.WinUI.ViewModels;
 using WinRT.Interop;
 
@@ -17,6 +18,7 @@ public partial class App : Application
     private DashboardViewModel? _dashboardViewModel;
     private AppSettingsService? _settingsService;
     private ProviderMonitorService? _monitorService;
+    private AppUpdateService? _updateService;
     private DispatcherQueueTimer? _refreshTimer;
     private DispatcherQueueTimer? _tooltipTimer;
     private readonly Dictionary<string, int> _alertLevels = new(StringComparer.OrdinalIgnoreCase);
@@ -32,6 +34,7 @@ public partial class App : Application
     {
         _settingsService = new AppSettingsService(new JsonSettingsStore(), new PasswordVaultSecretStore());
         _monitorService = new ProviderMonitorService(_settingsService);
+        _updateService = new AppUpdateService();
         _dashboardViewModel = new DashboardViewModel(_monitorService);
 
         _mainWindow = new MainWindow(_dashboardViewModel);
@@ -51,6 +54,7 @@ public partial class App : Application
 
         ConfigureTooltipTimer();
         _ = ReloadSettingsAndRefreshAsync();
+        _ = CheckForUpdatesAsync();
     }
 
     private void ShowMainWindow()
@@ -119,6 +123,25 @@ public partial class App : Application
         await _dashboardViewModel.RefreshAsync();
         EvaluateUsageAlerts();
         _trayIconService?.UpdateTooltip(_dashboardViewModel.TrayTooltip);
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        if (_updateService is null || _dashboardViewModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            Models.AppUpdateInfo? updateInfo = await _updateService.CheckForUpdateAsync();
+            _dashboardViewModel.SetUpdateInfo(updateInfo);
+            _trayIconService?.UpdateTooltip(_dashboardViewModel.TrayTooltip);
+        }
+        catch
+        {
+            _dashboardViewModel.SetUpdateInfo(null);
+        }
     }
 
     private void ConfigureRefreshTimer(int refreshIntervalMinutes)

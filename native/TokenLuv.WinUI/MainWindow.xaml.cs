@@ -103,7 +103,7 @@ public sealed partial class MainWindow : Window
         WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
         _appWindow.Title = "TokenLUV";
-        _appWindow.Resize(new Windows.Graphics.SizeInt32(500, 590));
+        _appWindow.Resize(new Windows.Graphics.SizeInt32(500, 500));
         _appWindow.Closing += AppWindow_Closing;
 
         if (_appWindow.Presenter is OverlappedPresenter presenter)
@@ -251,16 +251,6 @@ public sealed partial class MainWindow : Window
         OpenExternal(snapshot.StatusPageUrl);
     }
 
-    private void ScrollTabsLeft_Click(object sender, RoutedEventArgs e)
-    {
-        ShiftTabStrip(-180);
-    }
-
-    private void ScrollTabsRight_Click(object sender, RoutedEventArgs e)
-    {
-        ShiftTabStrip(180);
-    }
-
     private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(DashboardViewModel.IsExpanded) or nameof(DashboardViewModel.SelectedProvider))
@@ -277,22 +267,19 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        int targetHeight = 590;
+        int targetHeight = 500;
         if (_appWindow.Size.Height != targetHeight)
         {
             _appWindow.Resize(new Windows.Graphics.SizeInt32(500, targetHeight));
         }
     }
 
-    private void ShiftTabStrip(double delta)
+    private void OpenUpdateButton_Click(object sender, RoutedEventArgs e)
     {
-        if (ProvidersTabScrollViewer is null)
+        if (!string.IsNullOrWhiteSpace(ViewModel.UpdateUrl))
         {
-            return;
+            OpenExternal(ViewModel.UpdateUrl);
         }
-
-        double offset = Math.Max(0, ProvidersTabScrollViewer.HorizontalOffset + delta);
-        _ = ProvidersTabScrollViewer.ChangeView(offset, null, null, true);
     }
 
     private static void OpenExternal(string url)
